@@ -50,7 +50,7 @@ DM0.5 与 StreamVLN 当前逐请求执行。MicroDuck 使用其专用集成中�
     **✓ Franka FR3** — 适配器与 π0.5 绑定。
 
     **◐ ARX5** — DM0.5 绑定。<br>
-    **◐ Unitree Go2** — StreamVLN 导航。<br>
+    **◐ Unitree Go2** — StreamVLN；机载 Orin NX 的 ActiveVLN 异步/完整动作块 CLI（真机未验证）。<br>
     **◐ XLeRobot** — 独立硬件服务；双臂 π0.5 Recipe。
 
     [查看机器人适配器](https://github.com/BUAA-CI-LAB/EmbodiRun/tree/main/src/embodirun/robots)
@@ -96,9 +96,16 @@ DM0.5 与 StreamVLN 当前逐请求执行。MicroDuck 使用其专用集成中�
     | Bi-SO-101 | π0.5，12 维双臂策略 | [双臂指南](pi05-bi-so101.md) |
     | Franka FR3 | π0.5 绑定 | [适配器](https://github.com/BUAA-CI-LAB/EmbodiRun/tree/main/src/embodirun/robots/franka/fr3) |
     | ARX5 | DM0.5 绑定 | [绑定](https://github.com/BUAA-CI-LAB/EmbodiRun/tree/main/src/embodirun/bindings/arx/x5/dm05) |
-    | Unitree Go2 | StreamVLN 导航 | [机器人集成](https://github.com/BUAA-CI-LAB/EmbodiRun/tree/main/src/embodirun/robots/unitree/go2) |
+    | Unitree Go2 | StreamVLN；ActiveVLN / Orin NX、RealSense、batch=1 | [CLI 与配置](https://github.com/BUAA-CI-LAB/EmbodiRun/blob/main/examples/README.md#go2--onboard-orin-nx-activevln) |
     | XLeRobot | 独立硬件服务；双臂使用 `lerobot.xlerobot.pi05` | [Recipe](xlerobot-snack-delivery.md) / [owner 集成包](https://github.com/BUAA-CI-LAB/EmbodiRun/blob/main/integrations/xlerobot_owner/README.md) |
     | SO-101（有线遥操作） | 多主臂 UDP 分发，从臂侧 episode 采集 | [集成包](https://github.com/BUAA-CI-LAB/EmbodiRun/blob/main/integrations/so101_wired_teleop/README.md) |
+
+    Go2 ActiveVLN CLI 对接已冻结的优化 R2R 检查点服务
+    （`Arvil/Qwen2.5-VL-3B_rl_r2r_4000`，revision `160987313e3e869705f42400d1b8f28177044518`）。
+    `embodirun go2 activevln run --config LOCAL_CONFIG --instruction TEXT`
+    只取图和推理；加 `--execute` 才启用有时限的运动。
+    要求 Python 3.10+，目前仅完成 CPU / 模拟 HTTP 测试；通过新 CLI 的真机运动与
+    NX 推理尚未验证。服务准备方式见链接中的说明。
 
     SO-101 部署需要已标定的机械臂、相机映射，以及针对所选绑定
     训练的检查点。FR3 需要其机器人 SDK；ARX5 需要厂商电机

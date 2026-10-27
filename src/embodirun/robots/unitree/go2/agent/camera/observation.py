@@ -210,6 +210,7 @@ class CameraObservationService:
         return {
             "sequence": sequence,
             "captured_at_unix": frame.captured_at_unix,
+            "frame_age_s": self.source.frame_store.frame_age(frame),
             "source_frame_number": frame.source_frame_number,
             "source_timestamp_ms": frame.source_timestamp_ms,
             "pair_sequence_matched": True,

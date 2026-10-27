@@ -99,7 +99,7 @@ class Go2AgentDeployer:
 
 
 def _default_package_root() -> Path:
-    return Path(__file__).resolve().parents[3]
+    return Path(__file__).resolve().parents[4]
 
 
 def _validate_package_root(path: Path) -> None:

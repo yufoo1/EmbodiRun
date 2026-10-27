@@ -72,6 +72,7 @@ class ActionExecutor:
         return {
             "transport": self.transport.name,
             "operator_motion_ready": operator_motion_ready,
+            "capabilities": {"stream_lease_renewal": True},
             "closing": closing,
             "robot_state_available": state is not None,
             "robot_state_fresh": state_age_s is not None and state_age_s <= STATE_MAX_AGE_S,

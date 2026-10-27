@@ -29,6 +29,8 @@ class MotionLease:
         self.started_at_unix = time.time()
         self.updated_at_unix: float | None = None
         self.heartbeat_at_monotonic: float | None = time.monotonic() if self.action == "stream_move" else None
+        self._deadline: float | None = None
+        self._finished = False
 
     def snapshot(self) -> dict[str, Any]:
         with self._lock:
@@ -50,6 +52,15 @@ class MotionLease:
                 raise ApiError(HTTPStatus.CONFLICT, "action_id is not active")
             if self.action not in {"move", "stream_move"}:
                 raise ApiError(HTTPStatus.CONFLICT, "only a timed move can be updated")
+            now = time.monotonic()
+            if self._finished or self.stop_event.is_set() or (self._deadline is not None and now >= self._deadline):
+                raise ApiError(HTTPStatus.CONFLICT, "motion lease has expired or stopped")
+            if self.action == "stream_move" and self._heartbeat_expired():
+                raise ApiError(HTTPStatus.CONFLICT, "stream heartbeat expired")
+            if update.remaining_s is not None:
+                if self.action != "stream_move":
+                    raise ApiError(HTTPStatus.CONFLICT, "only stream_move permits deadline renewal")
+                self._deadline = now + update.remaining_s
             self._parameters.update(
                 vx=update.vx,
                 vy=update.vy,
@@ -102,6 +113,9 @@ class MotionLease:
         status = "completed"
         detail = "target reached"
         started = time.monotonic()
+        with self._lock:
+            if self._deadline is None:
+                self._deadline = started + self._parameter("duration_s")
         start_state: RobotState | None = None
         previous_yaw = 0.0
         accumulated_yaw = 0.0
@@ -111,8 +125,11 @@ class MotionLease:
             start_state = require_ready()
             previous_yaw = start_state.yaw
             while not self.stop_event.is_set():
-                elapsed = time.monotonic() - started
-                if elapsed >= self._parameter("duration_s"):
+                with self._lock:
+                    expired = time.monotonic() >= self._deadline
+                    if expired:
+                        self._finished = True
+                if expired:
                     if self.action in {"move_distance", "turn"}:
                         status, detail = "failed", "safety timeout before target"
                     else:
@@ -155,6 +172,8 @@ class MotionLease:
         except Exception as exc:  # noqa: BLE001 - lease must always reach StopMove
             status, detail = "failed", str(exc)
         finally:
+            with self._lock:
+                self._finished = True
             try:
                 with command_lock:
                     code = transport.stop()

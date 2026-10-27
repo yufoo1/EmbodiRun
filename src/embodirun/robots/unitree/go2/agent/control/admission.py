@@ -35,6 +35,7 @@ class MotionUpdate:
     vx: float
     vy: float
     yaw_rate: float
+    remaining_s: float | None = None
 
 
 def require_action(payload: dict[str, Any]) -> str:
@@ -120,7 +121,11 @@ def admit_motion_update(payload: dict[str, Any]) -> MotionUpdate:
     _check_range("vx", vx, -MAX_LINEAR_SPEED_MPS, MAX_LINEAR_SPEED_MPS)
     _check_range("vy", vy, -MAX_LINEAR_SPEED_MPS, MAX_LINEAR_SPEED_MPS)
     _check_range("yaw_rate", yaw_rate, -MAX_YAW_RATE_RPS, MAX_YAW_RATE_RPS)
-    return MotionUpdate(action_id, vx, vy, yaw_rate)
+    remaining = None
+    if "remaining_s" in payload:
+        remaining = require_number(payload, "remaining_s")
+        _check_range("remaining_s", remaining, 0.05, MAX_MOTION_DURATION_S)
+    return MotionUpdate(action_id, vx, vy, yaw_rate, remaining)
 
 
 __all__ = [

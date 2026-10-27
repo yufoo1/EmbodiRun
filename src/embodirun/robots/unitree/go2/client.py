@@ -102,7 +102,7 @@ class Go2ControlClient:
         payload = self._request("GET", "/v1/state")
         return self._state_from_payload(payload, require_fresh=require_fresh)
 
-    def preflight(self) -> MobileBaseState:
+    def preflight(self, *, require_renewal: bool = False) -> MobileBaseState:
         """Require an idle, explicitly armed live control service.
 
         This check is read-only.  The control API independently rechecks the
@@ -111,6 +111,11 @@ class Go2ControlClient:
         """
 
         payload = self._request("GET", "/v1/state")
+        if (
+            require_renewal
+            and _object(payload.get("capabilities", {}), "capabilities").get("stream_lease_renewal") is not True
+        ):
+            raise Go2ClientError("async navigation requires stream_lease_renewal; update the control agent")
         state = self._state_from_payload(payload, require_fresh=True)
         if payload.get("closing") is True:
             raise Go2ClientError("control service is closing")
@@ -137,7 +142,10 @@ class Go2ControlClient:
             raise Go2ClientError("control service did not return an action_id")
         return action_id
 
-    def update_velocity_lease(self, action_id: str, command: PlanarVelocityCommand) -> None:
+    def update_velocity_lease(
+        self, action_id: str, command: PlanarVelocityCommand, *, remaining_s: float | None = None
+    ) -> None:
+        """Update velocity; optionally renew a stream lease's bounded remaining horizon."""
         result = self._request(
             "POST",
             "/v1/actions",
@@ -147,6 +155,7 @@ class Go2ControlClient:
                 "vx": command.vx_mps,
                 "vy": command.vy_mps,
                 "yaw_rate": command.yaw_rate_rps,
+                **({"remaining_s": remaining_s} if remaining_s is not None else {}),
             },
         )
         if result.get("accepted") is not True:

@@ -68,7 +68,7 @@ class Go2ServiceSupervisor:
                     node="go2",
                     environment_id="go2-agent",
                     endpoint=endpoint,
-                    health_endpoint=f"{endpoint}/healthz",
+                    health_endpoint=f"{endpoint}/health",
                     command=Command(tuple(command), environment=environment),
                 )
             )

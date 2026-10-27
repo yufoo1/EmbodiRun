@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import time
 from collections.abc import Mapping
 from typing import Any
 
@@ -52,10 +53,24 @@ class Go2CameraClient:
         reset: bool,
         robot_state: Mapping[str, object],
     ) -> NavigationObservation:
+        started = time.monotonic()
         try:
             payload = self.http.request_json("GET", "/observation.json", maximum_bytes=MAX_CAMERA_RESPONSE_BYTES)
         except HttpClientError as error:
             raise Go2CameraError(str(error)) from error
+        received = time.monotonic()
+        timing = {}
+        if "frame_age_s" in payload:
+            age = _finite(payload["frame_age_s"], "frame_age_s")
+            if age < 0:
+                raise Go2CameraError("frame_age_s must be non-negative")
+            # The server's monotonic publish age avoids cross-host wall-clock
+            # synchronization. Half the round trip bounds network uncertainty;
+            # camera exposure/encoding delay still requires hardware calibration.
+            timing = {
+                "captured_at_monotonic_s": (started + received) / 2 - age,
+                "capture_uncertainty_s": (received - started) / 2,
+            }
         if payload.get("navigation_ready") is not True:
             raise Go2CameraError("camera is not navigation-ready")
         sequence = _sequence(payload.get("sequence"), "observation.sequence")
@@ -97,6 +112,7 @@ class Go2CameraClient:
             rgb_frames=(frame,),
             depth=depth,
             robot_state=robot_state,
+            metadata=timing,
         )
 
     def capture(
