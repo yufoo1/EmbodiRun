@@ -7,7 +7,10 @@ import sys
 from typing import Any
 
 UNSAFE_ICEORYX_PUBLISH_SYMBOL = b"iox_pub_publish_chunk"
-CONTROL_MODULE = "embodirun.robots.unitree.go2.agent.control"
+# The vendor Python 3.8 entrypoint exposes the standalone `go2` package on
+# PYTHONPATH, avoiding EmbodiRun's Python 3.10+ parent packages. Preserve that
+# entrypoint when re-executing to select the native DDS library.
+CONTROL_MODULE = __package__
 
 
 def loaded_dds_library_path() -> str | None:

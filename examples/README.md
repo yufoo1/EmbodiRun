@@ -193,6 +193,11 @@ hardware/GPU profiles. Building an image does not enable robot motion.
 
 ## Go2 / onboard Orin NX ActiveVLN
 
+For checkpoint preparation, transfer, vendor Python entrypoints and environment
+requirements, see the [deployment guide](../docs/en/go2-activevln.md)
+([中文](../docs/zh/go2-activevln.md)). Preparation has a separate CPU-only uv
+environment; it does not install the model service or alter the Host environment.
+
 `embodirun go2 activevln` connects the Go2 RealSense/control agents to the
 optimized batch-one ActiveVLN HTTP service on onboard Orin NX. Copy
 [go2-orin-nx.json](../configs/activevln/go2-orin-nx.json), fill the three blank
