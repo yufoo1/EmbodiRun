@@ -10,11 +10,61 @@ machine-readable results. For robot and simulator task setup, use
 |---|---|---|
 | [SO-101 engine comparison](engine-comparison/README.md) | π0.5 grasping with EmbodiInfer HTTP/WirelessComm, SGLang, and native LeRobot | [Timing report](../docs/en/demos/engine-e2e-contrast.md), summary JSON, and SVG generator |
 | [Inference transport](inference-transport/README.md) | HTTP / WirelessComm replay against the same model service and recorded observations | [Transport report](../docs/en/inference-transport.md) and measurement commands |
+| [ActiveVLN navigation](#activevln-navigation) | Closed-loop Habitat R2R/RxR evaluation through an EmbodiInfer HTTP service | [Orin NX R2R BF16 / INT8 results](https://github.com/yufoo1/EmbodiInfer/tree/fix/activevln-resident-kv/benchmarks/activevln-benchmark/orin-nx) |
 
 Model-only benchmarks are maintained in
 [EmbodiInfer](https://github.com/BUAA-CI-LAB/EmbodiInfer/tree/main/benchmarks).
 中文结果：[引擎对比](../docs/zh/demos/engine-e2e-contrast.md) ·
 [推理传输](../docs/zh/inference-transport.md)。
+
+## ActiveVLN navigation
+
+[activevln-navigation/](activevln-navigation/) runs closed-loop Habitat evaluation
+against an EmbodiInfer HTTP service. The published Orin NX comparison uses R2R
+val-unseen, 256 identical scene-proportional episodes per precision, batch one.
+Results and inference configuration live in the
+[Orin NX benchmark](https://github.com/yufoo1/EmbodiInfer/tree/fix/activevln-resident-kv/benchmarks/activevln-benchmark/orin-nx).
+The runner uses the current EmbodiInfer HTTP client and negotiates the schema
+advertised by frozen inference services. Habitat-Sim 0.2.4 runs separately.
+
+Start the NX service using its benchmark instructions and forward its port to
+the simulator host. Copy its `config.json`, `service-ready.json`, `service-token`
+and `selected-r2r-navigation-256.json` into `RUN_ROOT`. From this repository:
+
+```bash
+# Set RUN_ROOT, HABITAT_PYTHON, SCENES and RESULTS to prepared local paths.
+STAGE=bf16-r2r  # repeat with the INT8 service and STAGE=int8-r2r
+PYTHONPATH=src python benchmarks/activevln-navigation/benchmark.py \
+  --root "$RUN_ROOT" --config "$RUN_ROOT/config.json" \
+  --endpoint http://127.0.0.1:18767 --service-ready "$RUN_ROOT/service-ready.json" \
+  --token-file "$RUN_ROOT/service-token" --habitat-python "$HABITAT_PYTHON" \
+  --scenes "$SCENES" --simulator-gpu 0 --datasets r2r --episode-count 256 \
+  --batch-size 1 --output "$RESULTS/$STAGE"
+
+# Copy the matching NX tensor-batches.jsonl to "$RESULTS/$STAGE/", then:
+python benchmarks/activevln-navigation/summarize.py "$RESULTS" "$STAGE"
+# After both stages:
+python benchmarks/activevln-navigation/summarize.py "$RESULTS" compare --datasets r2r
+```
+
+Reports retain SR, SPL, NE, oracle SR, per-call model/HTTP timing, episode wall
+time, CUDA peaks and action traces. Model E2E excludes warmup, HTTP and Habitat;
+interrupted runs are incomplete, not navigation failures. Pair comparison checks
+initial observations, episode selection, inference source and runtime settings.
+
+Use the retained manifests for the published results; inference verifies their
+SHA256. `prepare_selection.py` can rebuild them from the original datasets and
+checked 1024-episode reachability manifests (`--preflight-root`), or perform new
+reachability checks with the Habitat interpreter when that option is omitted:
+
+```bash
+"$HABITAT_PYTHON" benchmarks/activevln-navigation/prepare_selection.py \
+  --datasets r2r --r2r-source "$R2R_SOURCE" --scenes "$SCENES" \
+  --preflight-root "$PREFLIGHT_ROOT" --episode-count 256 --seed 42 --output "$MANIFESTS"
+```
+
+Weights, scenes, manifests, credentials and raw reports stay outside Git.
+RxR is supported by the scripts but has no completed 256-episode result here.
 
 ## Run a measurement
 
