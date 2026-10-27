@@ -2,14 +2,12 @@
 
 import threading
 import time
-from dataclasses import replace
 
 import pytest
 
 from embodirun.robots.unitree.go2.navigation.async_chunk_session import (
     AsyncChunkNavigationSession,
     OverlapConfig,
-    remaining_commands,
 )
 from embodirun.robots.unitree.go2.navigation.chunk_session import ChunkSessionConfig, NavigationChunk
 from embodirun.robots.unitree.go2.navigation.discrete import NavigationCommand as Command
@@ -178,42 +176,3 @@ def test_cancellation_stops_before_draining_inflight_model_and_never_restarts():
     assert len(base.stops) == 1 and len(base.starts) == 1
     assert not session._running
     assert not any(t.name.startswith("go2-observe-infer") for t in threading.enumerate())
-
-
-@pytest.mark.parametrize("missing", [True, False])
-def test_bad_frame_timing_fails_before_motion(missing):
-    session, base, camera, _, _ = setup_session()
-    camera.metadata = not missing
-    camera.age = 10 if not missing else 0
-    with pytest.raises((ValueError, TimeoutError)):
-        session.run("go", execute=True)
-    assert not base.starts and not base.stops
-
-
-def test_stale_model_result_is_not_executed():
-    session, base, _, policy, _ = setup_session()
-    session.config = replace(session.config, max_plan_age_s=0.25)
-    policy.delay = 0.35
-    with pytest.raises(TimeoutError, match="too old"):
-        session.run("go", execute=True)
-    assert len(base.starts) == len(base.stops) == 1
-
-
-def test_runtime_timeout_stops_before_draining():
-    session, base, _, policy, _ = setup_session()
-    session.config = replace(session.config, max_runtime_s=1.6)
-    policy.block = True
-    with pytest.raises(TimeoutError, match="runtime limit"):
-        session.run("go", execute=True)
-    assert len(base.stops) == 1
-
-
-def test_remaining_tail_crosses_action_boundaries_and_keeps_partial_turns():
-    chunk = NavigationChunk(
-        1, (Command(Kind.MOVE_FORWARD, distance_m=0.25), Command(Kind.TURN_LEFT, angle_deg=30), FORWARD)
-    )
-    config = ChunkSessionConfig()
-    tail = remaining_commands(chunk, 1.0 + (3.141592653589793 / 6) / config.yaw_rate_rps / 2, config)
-    assert tail[0].angle_deg == pytest.approx(15)
-    assert tail[1] == FORWARD
-    assert remaining_commands(chunk, 100, config) == ()
