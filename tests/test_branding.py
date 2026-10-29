@@ -58,6 +58,18 @@ def test_cli_validates_existing_config() -> None:
     assert result.returncode == 0, result.stderr
 
 
+def test_go2_activevln_uses_unified_cli_without_deployment_yaml():
+    executable = str(Path(sys.executable).parent / "embodirun")
+    help_result = subprocess.run([executable, "go2", "activevln", "--help"], capture_output=True, text=True, timeout=30)
+    assert help_result.returncode == 0 and "embodirun go2 activevln" in help_result.stdout
+    config = Path(__file__).parents[1] / "configs/activevln/go2-orin-nx.json"
+    plan = subprocess.run(
+        [executable, "go2", "activevln", "plan", "--config", str(config)], capture_output=True, text=True, timeout=30
+    )
+    assert plan.returncode == 0, plan.stderr
+    assert json.loads(plan.stdout)["configuration"]["mode"] == "overlap"
+
+
 def test_cli_honors_a_stopped_service_without_replaying_or_migrating(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

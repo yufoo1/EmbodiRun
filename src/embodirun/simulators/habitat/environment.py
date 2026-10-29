@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from embodirun.robots.unitree.go2.navigation.discrete import (
+from embodirun.robots.mobile_base.discrete import (
     NavigationCommand,
     NavigationCommandKind,
 )

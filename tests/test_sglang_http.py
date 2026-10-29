@@ -6,8 +6,8 @@ from types import SimpleNamespace
 import pytest
 
 from embodirun.bindings.unitree.go2.streamvln import StreamVLNGo2Mapper
+from embodirun.robots.mobile_base.discrete import NavigationCommandKind
 from embodirun.robots.sensors.cameras import CameraFrame
-from embodirun.robots.unitree.go2.navigation.discrete import NavigationCommandKind
 from embodirun.services.inference import (
     HttpResponse,
     ImagePayload,

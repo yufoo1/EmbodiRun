@@ -6,7 +6,7 @@ import math
 from importlib import import_module
 from typing import Any
 
-from embodirun.robots.unitree.go2.navigation.discrete import (
+from embodirun.robots.mobile_base.discrete import (
     NavigationCommand,
     NavigationCommandKind,
 )

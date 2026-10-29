@@ -10,8 +10,8 @@ from numbers import Real
 from typing import Any, Protocol
 
 from embodirun.robots import RobotAction, RobotObservation
+from embodirun.robots.mobile_base.discrete import NavigationCommand
 from embodirun.robots.sensors.cameras import CameraFrame
-from embodirun.robots.unitree.go2.navigation.discrete import NavigationCommand
 from embodirun.types import Metadata
 
 from .adapter import SimulationStep, SimulatorAdapter, SimulatorObservation
