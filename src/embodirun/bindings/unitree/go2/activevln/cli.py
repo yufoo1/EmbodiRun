@@ -117,6 +117,12 @@ def _parser() -> argparse.ArgumentParser:
     ):
         command = sub.add_parser(name, help=description)
         command.add_argument("--config", type=Path, required=True)
+        command.add_argument(
+            "--mode", choices=("chunk", "overlap"), help="override synchronous or overlapping execution"
+        )
+        command.add_argument(
+            "--overlap-lead-s", type=float, help="override seconds before motion ends to start inference"
+        )
         if name == "run":
             command.add_argument("--instruction", required=True)
         if name in {"run", "interactive"}:
@@ -138,6 +144,10 @@ def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(arguments)
     try:
         config = NavigationConfig.load(args.config)
+        if args.mode is not None:
+            config = replace(config, mode=args.mode)
+        if args.overlap_lead_s is not None:
+            config = replace(config, overlap=replace(config.overlap, lead_s=args.overlap_lead_s))
         if args.command in {"run", "interactive"}:
             overrides = {
                 key: getattr(args, key) for key in ("max_chunks", "max_runtime_s") if getattr(args, key) is not None
@@ -217,7 +227,14 @@ def main(argv: list[str] | None = None) -> int:
                 def task_emit(event: dict[str, object]) -> None:
                     emit({**event, "episode_id": episode_id})
 
-                task_emit({"event": "navigation_started", "instruction": instruction, "execute": args.execute})
+                task_emit(
+                    {
+                        "event": "navigation_started",
+                        "instruction": instruction,
+                        "execute": args.execute,
+                        "mode": config.mode,
+                    }
+                )
                 policy = ActiveVLNPolicy(client, robot_id=config.robot_id, event_sink=task_emit)
                 try:
                     if config.mode == "overlap":
@@ -245,6 +262,7 @@ def main(argv: list[str] | None = None) -> int:
             if interactive:
                 print(
                     f"Motion {'ENABLED' if args.execute else 'disabled (dry-run)'}. "
+                    f"Mode: {config.mode}. "
                     f"Task bounds: {config.session.max_chunks} chunks, {config.session.max_runtime_s:g} s "
                     "(in-flight inference cleanup may take longer).",
                     flush=True,

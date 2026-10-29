@@ -273,8 +273,50 @@ def test_task_limits_release_and_return_to_prompt(setup_cli, limits, reason, sta
     assert f"Task ended: {reason}" in capsys.readouterr().out
 
 
-@pytest.mark.parametrize("limits", [["--max-chunks", "0"], ["--max-runtime-s", "nan"]])
+@pytest.mark.parametrize(
+    "limits",
+    [
+        ["--max-chunks", "0"],
+        ["--max-runtime-s", "nan"],
+        ["--overlap-lead-s", "0"],
+        ["--overlap-lead-s", "-1"],
+        ["--overlap-lead-s", "nan"],
+        ["--overlap-lead-s", "inf"],
+    ],
+)
 def test_invalid_limits_fail_before_connecting(setup_cli, limits):
     run, _, client, connections, _ = setup_cli
     assert run(["go"], "--execute", *limits) == 1
     assert not connections and not client.opened
+
+
+def test_plan_previews_overrides_without_changing_file_or_connecting(setup_cli, capsys):
+    _, _, _, connections, path = setup_cli
+    original = path.read_bytes()
+    assert cli.main(["plan", "--config", str(path), "--mode", "overlap", "--overlap-lead-s", "2.5"]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["configuration"]["mode"] == "overlap"
+    assert result["configuration"]["overlap"]["lead_s"] == 2.5
+    assert result["motion_enabled"] is False
+    assert not connections and path.read_bytes() == original
+
+
+def test_overlap_override_requires_prefix_support_before_motion(setup_cli, capsys):
+    run, base, client, _, _ = setup_cli
+    assert run(["go"], "--execute", "--mode", "overlap") == 1
+    assert "execution-prefix-aware" in capsys.readouterr().err
+    assert not (client.opened or base.starts or base.stops)
+
+
+def test_chunk_override_uses_sync_execution_with_overlap_config(setup_cli, capsys):
+    run, base, client, _, path = setup_cli
+    config = json.loads(path.read_text())
+    config["mode"] = "overlap"
+    path.write_text(json.dumps(config))
+    assert run(["go", "/quit"], "--execute", "--mode", "chunk") == 0
+    assert len(base.starts) == 2 and len(base.releases) == 1
+    assert client.closed == ["0"]
+    output = capsys.readouterr().out
+    assert "Mode: chunk." in output
+    started = [json.loads(line) for line in output.splitlines() if line.startswith('{"event": "navigation_started"')]
+    assert started[0]["mode"] == "chunk"
