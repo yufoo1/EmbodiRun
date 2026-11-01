@@ -120,6 +120,19 @@ class Inference:
         )
 
 
+def test_idle_inspection_waits_for_fresh_rgb_without_acquiring_motion():
+    clock = Clock()
+    base, camera = Base(clock), Camera(clock)
+    session = ChunkNavigationSession(None, camera, base, clock=clock, sleep=clock.sleep)
+    observation = session.capture_idle("rpent-inspect")
+    assert observation.sequence == 2 and not observation.reset
+    assert not base.starts and not base.releases and not base.stops
+    base.active, base.expires = "other-controller", clock() + 10
+    with pytest.raises(MobileBaseError, match="idle"):
+        session.capture_idle("rpent-inspect")
+    assert base.active == "other-controller" and not base.stops
+
+
 @pytest.fixture
 def setup_cli(tmp_path, monkeypatch):
     clock = Clock()
